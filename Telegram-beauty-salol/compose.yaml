@@ -1,0 +1,7 @@
+﻿services:
+  beautysalonbot:
+    image: beautysalonbot
+    build:
+      context: .
+      dockerfile: BeautySalonBot/Dockerfile
+
