@@ -93,7 +93,27 @@ public class ClientStartHandler : IUpdateHandler
                     $"Спасибо что выбрали нас✨✨✨",
                     cancellationToken: ct);
 
-                return;
+                await bot.SendMessage(
+                    chatId: -5031976519,
+                    text: $"📥 Запрос на запись:\n" +
+                          $"👤 Клиент: [{query.From.FirstName }](tg://user?id={query.From.Id})\n" +
+                          $"💅 Процедура: {procedureName}\n\n",
+                    parseMode: ParseMode.Markdown,
+                    replyMarkup: new InlineKeyboardMarkup(new[]
+                    {
+                        new[]
+                        {
+                            InlineKeyboardButton.WithCallbackData("✅ Подтвержден", $"reaction:called"),
+                            InlineKeyboardButton.WithCallbackData("🔁 Перезвонить", "reaction:retry")
+                        },
+                        new[]
+                        {
+                            InlineKeyboardButton.WithCallbackData("❌ Не дозвонились", "reaction:missed"),
+                            InlineKeyboardButton.WithCallbackData("🚫 Неинтересно", "reaction:ignored")
+                        }
+                    }),
+                    cancellationToken: ct
+                );
             }
 
             await bot.SendMessage(
