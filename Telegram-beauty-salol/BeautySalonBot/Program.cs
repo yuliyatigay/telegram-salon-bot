@@ -9,8 +9,6 @@ internal class Program
         var containerConfig = ContainerConfig.Configure();
         var bot = containerConfig.Resolve<ClientBot>();
         bot.Start();
-
-        Console.WriteLine("Press Enter to stop bot...");
-        Console.ReadLine();
+        Thread.Sleep(Timeout.Infinite);
     }
 }

@@ -14,8 +14,12 @@ public class ClientBot
         _handlers = handlers.ToList();
     }
 
-    public void Start()
+    public async Task Start()
     {
+        await _botClient.SetMyCommands(new[]
+        {
+            new BotCommand { Command = "start", Description = "Начать запись" }
+        });
         var receiverOptions = new ReceiverOptions
         {
             AllowedUpdates = Array.Empty<UpdateType>() 

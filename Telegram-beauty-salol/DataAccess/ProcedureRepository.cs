@@ -19,7 +19,7 @@ public class ProcedureRepository : IProcedureRepository
         const string sql = """
                                SELECT "Name"
                                FROM "Procedures"
-                               ORDER BY "Name"
+                               ORDER BY "Id"
                            """;
 
         await using var connection = new NpgsqlConnection(_connectionString);
