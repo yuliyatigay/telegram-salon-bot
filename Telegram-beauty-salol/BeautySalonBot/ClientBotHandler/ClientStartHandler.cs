@@ -69,7 +69,8 @@ public class ClientStartHandler : IUpdateHandler
         var chatId = query.Message.Chat.Id;
         var data = query.Data;
         
-        var time = query.Message.Date.TimeOfDay;
+        var now = DateTime.UtcNow.AddHours(9);
+        var time = now.TimeOfDay;
         var startOfDay = new TimeSpan(9, 0, 0);
         var endOfDay   = new TimeSpan(21, 0, 0); 
 
