@@ -17,7 +17,7 @@ public class ProcedureRepository : IProcedureRepository
     public async Task<List<Procedure>> GetAllAsync()
     {
         const string sql = """
-                               SELECT "Name"
+                               SELECT *
                                FROM "Procedures"
                                ORDER BY "Id"
                            """;
@@ -25,5 +25,16 @@ public class ProcedureRepository : IProcedureRepository
         await using var connection = new NpgsqlConnection(_connectionString);
         var result = await connection.QueryAsync<Procedure>(sql);
         return result.ToList();
+    }
+
+    public async Task<Procedure> GetByIdAsync(Guid id)
+    {
+        const string sql = """
+                               SELECT "Id", "Name"
+                               FROM "Procedures"
+                               WHERE "Id" = @Id
+                           """;
+        await using var connection = new NpgsqlConnection(_connectionString);
+        return await connection.QuerySingleOrDefaultAsync<Procedure>(sql, new { Id = id });
     }
 }

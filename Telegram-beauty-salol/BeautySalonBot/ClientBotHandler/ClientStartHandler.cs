@@ -3,6 +3,7 @@ using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
+using Telegram.Bots;
 
 namespace BeautySalonBot.ClientBotHandler;
 
@@ -10,6 +11,7 @@ public class ClientStartHandler : IUpdateHandler
 {
     private readonly IProcedureRepository _procedureRepository;
     private static readonly Dictionary<long, string> _waitingForComment = new();
+    private string _adminText = "";
 
     public ClientStartHandler(IProcedureRepository procedureRepository)
     {
@@ -23,13 +25,25 @@ public class ClientStartHandler : IUpdateHandler
             Console.WriteLine($"[DEBUG] CallbackQuery: {update.CallbackQuery.Data}");
             return true;
         }
-        return update.Type == UpdateType.Message && update.Message?.Text == "/start";
+
+        if (update.Type == UpdateType.Message && update.Message?.Text != null)
+        {
+            // либо это старт-команда
+            if (update.Message.Text == "/start")
+                return true;
+
+            // либо пользователь в ожидании комментария
+            if (_waitingForComment.ContainsKey(update.Message.From.Id))
+                return true;
+        }
+
+        return false;
     }
 
 
     public async Task HandleAsync(ITelegramBotClient botClient, Update update, CancellationToken ct)
     {
-        if (update.Type == UpdateType.Message && update.Message?.Text == "/start")
+        if (update.Message?.Text?.StartsWith("/start") == true)
         {
             await HandleStartCommand(botClient, update, ct);
             return;
@@ -45,8 +59,7 @@ public class ClientStartHandler : IUpdateHandler
             _waitingForComment.Remove(update.Message.From.Id);
 
             var now = DateTime.UtcNow.AddHours(9);
-            var time = now.TimeOfDay;
-
+            var time = now.ToString("HH:mm");
             // Ответ пользователю
             await botClient.SendMessage(
                 chatId,
@@ -55,14 +68,15 @@ public class ClientStartHandler : IUpdateHandler
                 "Наш администратор свяжется с вами в ближайшее время ✨",
                 cancellationToken: ct);
 
-            // Сообщение админу
+            _adminText =
+                $"📥 Запрос на запись:\n" +
+                $"👤 Клиент: [{update.Message.From.FirstName}](tg://user?id={update.Message.From.Id})\n" +
+                $"💅 Процедура: {procedureName}\n\n" +
+                $"💬 Комментарий: {comment}\n\n" +
+                $"Сообщение было отправлено в: {time}";
             await botClient.SendMessage(
                 chatId: -5031976519,
-                text: $"📥 Запрос на запись:\n" +
-                      $"👤 Клиент: [{update.Message.From.FirstName}](tg://user?id={update.Message.From.Id})\n" +
-                      $"💅 Процедура: {procedureName}\n" +
-                      $"💬 Комментарий: {comment}\n\n" +
-                      $"Сообщение было отправлено в: {time}",
+                text: _adminText,
                 parseMode: ParseMode.Markdown,
                 replyMarkup: new InlineKeyboardMarkup(new[]
                 {
@@ -93,7 +107,7 @@ public class ClientStartHandler : IUpdateHandler
 
         var inlineKeyboard = new InlineKeyboardMarkup(
             procedures.Select(p =>
-                new[] { InlineKeyboardButton.WithCallbackData(p.Name, $"select_procedure:{p.Name}") }
+                new[] { InlineKeyboardButton.WithCallbackData(p.Name, $"select_procedure:{p.Id}") }
             )
         );
         
@@ -102,7 +116,7 @@ public class ClientStartHandler : IUpdateHandler
             chatId,
             $"Здравствуйте, {firstName}!✨\n" +
             $"Спасибо за обращение в BEAUTY ZONE!✨\n\n" +
-            $"Вас приветствует виртуальный помощник студии красоты Beauty Zone.\n" +
+            $"Вас приветствует виртуальный помощник нашей студии красоты.\n" +
             $"Пожалуйста, выберите желаемую процедуру из списка ниже 🤍",
             replyMarkup: inlineKeyboard,
             cancellationToken: ct);
@@ -120,19 +134,23 @@ public class ClientStartHandler : IUpdateHandler
         
         if (data.StartsWith("select_procedure:"))
         {
-            var procedureName = data.Split(':')[1];
-            _waitingForComment[query.From.Id] = procedureName;
+            var idPart = data.Split(':')[1];
+            var procedureId = Guid.Parse(idPart);
 
-            await bot.AnswerCallbackQuery(
-                query.Id,
-                $"Вы выбрали процедуру: {procedureName}"
-            );
+            var procedure = await _procedureRepository.GetByIdAsync(procedureId);
+            var procedureName = procedure.Name;
+
+            _waitingForComment[query.From.Id] = procedureName;
+            
 
             await bot.SendMessage(
                 chatId,
-                $"{query.From.FirstName}, благодарим за выбор 🤍\n" +
-                "Отправьте, пожалуйста, сообщение с желаемой датой и временем для записи 🤍\n" +
-                "Мы проверим доступность и подтвердим ✨",
+                $"{query.From.FirstName}🤍\n" +
+                "Спасибо за ваш запрос!\n" +
+                "Пожалуйста, отправьте в ответном сообщении:\n" +
+                "📅 желаемую дату записи\n" +
+                "⏰ удобное время\n" +
+                "Мы проверим доступность и в ближайшее время подтвердим вашу запись ✨",
                 cancellationToken: ct
             );
 
@@ -156,7 +174,7 @@ public class ClientStartHandler : IUpdateHandler
             await bot.EditMessageText(
                 chatId: message.Chat.Id,
                 messageId: message.MessageId,
-                text: message.Text + $"\n\n📌 Статус: {statusText}",
+                text: _adminText + $"\n\n📌 Статус: {statusText}",
                 parseMode: ParseMode.Markdown,
                 cancellationToken: ct);
 
